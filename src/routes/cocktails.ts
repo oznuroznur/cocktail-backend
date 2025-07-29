@@ -30,7 +30,7 @@ cocktailsRouter.get('/', async (req, res) => {
 });
 
 
-//GET /api/cocktails/:id
+//GET a specific cocktail /api/cocktails/:id
 /**
  * @swagger
  * /api/cocktails/{id}:
@@ -69,7 +69,7 @@ cocktailsRouter.get('/:id', async (req, res) => {
   }
 })
 
-
+//POST /api/cocktails/add-coctail
 /**
  * @swagger
  * /api/cocktails:
@@ -86,7 +86,7 @@ cocktailsRouter.get('/:id', async (req, res) => {
  *       201:
  *         description: Cocktail created
  */
-cocktailsRouter.post('/with-everything', async (req, res) => {
+cocktailsRouter.post('/add-coctail', async (req, res) => {
   try {
     const {
       name,
@@ -163,6 +163,7 @@ cocktailsRouter.post('/with-everything', async (req, res) => {
 });
 
 
+//UPDATE a cocktail /api/cocktails/:id
 /**
  * @swagger
  * /api/cocktails/{id}:
@@ -201,6 +202,8 @@ cocktailsRouter.put('/:id', async (req, res) => {
   }
 });
 
+
+//DELETE a cocktail /api/cocktails/:id
 /**
  * @swagger
  * /api/cocktails/{id}:
