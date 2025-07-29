@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model allergens {
+  id                 Int                  @id @default(autoincrement())
+  name               String?              @unique
+  cocktail_allergens cocktail_allergens[]
+}
+
+model categories {
+  id                  Int                   @id @default(autoincrement())
+  name                String?               @unique
+  cocktail_categories cocktail_categories[]
+}
+
+model cocktail_allergens {
+  id          Int        @id @default(autoincrement())
+  cocktail_id Int?
+  allergen_id Int?
+  allergens   allergens? @relation(fields: [allergen_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cocktails   cocktails? @relation(fields: [cocktail_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([cocktail_id, allergen_id])
+}
+
+model cocktail_categories {
+  id          Int         @id @default(autoincrement())
+  cocktail_id Int?
+  category_id Int?
+  categories  categories? @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cocktails   cocktails?  @relation(fields: [cocktail_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([cocktail_id, category_id])
+}
+
+model cocktail_tags {
+  id          Int        @id @default(autoincrement())
+  cocktail_id Int?
+  tag_id      Int?
+  cocktails   cocktails? @relation(fields: [cocktail_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tags        tags?      @relation(fields: [tag_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([cocktail_id, tag_id])
+}
+
+model cocktails {
+  id                   Int                   @id @default(autoincrement())
+  name                 String?
+  image_url            String?
+  video_url            String?
+  description          String?
+  glass_type_id        Int?
+  method               String?
+  garnish              String?
+  difficulty           String?
+  prep_time            Int?
+  nutrition_info       String?
+  is_alcoholic         Boolean?
+  servings             Int?
+  alcohol_percentage   Float?
+  calories_per_serving Int?
+  created_at           DateTime?             @db.Timestamp(6)
+  cocktail_allergens   cocktail_allergens[]
+  cocktail_categories  cocktail_categories[]
+  cocktail_tags        cocktail_tags[]
+  glass_types          glass_types?          @relation(fields: [glass_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  comments             comments[]
+  favorites            favorites[]
+  ingredients          ingredients[]
+  instructions         instructions[]
+}
+
+model comment_likes {
+  id         Int       @id @default(autoincrement())
+  user_id    String?   @db.Uuid
+  comment_id Int?
+  is_liked   Boolean?
+  created_at DateTime? @db.Timestamp(6)
+  comments   comments? @relation(fields: [comment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users      users?    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([user_id, comment_id])
+}
+
+model comments {
+  id            Int             @id @default(autoincrement())
+  cocktail_id   Int?
+  user_id       String?         @db.Uuid
+  comment       String?
+  rating        Int?
+  created_at    DateTime?       @db.Timestamp(6)
+  comment_likes comment_likes[]
+  cocktails     cocktails?      @relation(fields: [cocktail_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users         users?          @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model favorites {
+  id          Int        @id @default(autoincrement())
+  cocktail_id Int?
+  user_id     String?    @db.Uuid
+  created_at  DateTime?  @db.Timestamp(6)
+  cocktails   cocktails? @relation(fields: [cocktail_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users       users?     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([user_id, cocktail_id])
+}
+
+model glass_types {
+  id        Int         @id @default(autoincrement())
+  name      String?
+  image_url String?
+  cocktails cocktails[]
+}
+
+model ingredients {
+  id          Int        @id @default(autoincrement())
+  cocktail_id Int?
+  name        String?
+  amount      Decimal?   @db.Decimal
+  unit_id     Int?
+  cocktails   cocktails? @relation(fields: [cocktail_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  units       units?     @relation(fields: [unit_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model instructions {
+  id          Int        @id @default(autoincrement())
+  cocktail_id Int?
+  step_number Int?
+  text        String?
+  cocktails   cocktails? @relation(fields: [cocktail_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model pantry_items {
+  id              Int       @id @default(autoincrement())
+  user_id         String?   @db.Uuid
+  ingredient_name String?
+  amount          Decimal?  @db.Decimal
+  unit_id         Int?
+  expires_at      DateTime? @db.Date
+  created_at      DateTime? @db.Timestamp(6)
+  units           units?    @relation(fields: [unit_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users           users?    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model shopping_list_items {
+  id              Int       @id @default(autoincrement())
+  user_id         String?   @db.Uuid
+  ingredient_name String?
+  amount          Decimal?  @db.Decimal
+  unit_id         Int?
+  is_checked      Boolean?  @default(false)
+  created_at      DateTime? @db.Timestamp(6)
+  units           units?    @relation(fields: [unit_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users           users?    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model tags {
+  id            Int             @id @default(autoincrement())
+  name          String?         @unique
+  cocktail_tags cocktail_tags[]
+}
+
+model units {
+  id                  Int                   @id @default(autoincrement())
+  name                String?
+  description         String?
+  ingredients         ingredients[]
+  pantry_items        pantry_items[]
+  shopping_list_items shopping_list_items[]
+}
+
+model users {
+  id                  String                @id @db.Uuid
+  name                String?
+  email               String?               @unique
+  phone_number        String?               @unique
+  is_verified         Boolean?
+  avatar_url          String?
+  created_at          DateTime?             @db.Timestamp(6)
+  comment_likes       comment_likes[]
+  comments            comments[]
+  favorites           favorites[]
+  pantry_items        pantry_items[]
+  shopping_list_items shopping_list_items[]
+}
