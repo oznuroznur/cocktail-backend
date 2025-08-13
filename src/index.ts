@@ -7,16 +7,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 const app = express();
+app.use(express.json());    
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8000;
 
 app.get('/', (req, res) => {
   res.send(`
     <html>
-      <head><title>Hoş Geldiniz</title></head>
-      <body style="font-family:sans-serif; text-align:center; margin-top:50px;">
-        <h1>😊 Hoş geldiniz! 🍹</h1>
-        <p>Bu backend sunucusu çalışıyor.</p>
-        <p><a href="/api-docs">API dökümantasyonuna gitmek için tıklayın</a></p>
+      <body>
+        <p><a href="/api-docs">API dökümantasyonu</a></p>
       </body>
     </html>
   `);

@@ -1,5 +1,13 @@
-import { prisma } from '../prisma/client';
-import express from 'express';
+import { prisma } from "../prisma/client";
+import express, { Request, Response } from "express";
+import { z } from "zod";
+import {
+  cocktailCreateSchema,
+  cocktailUpdateSchema,
+  CocktailCreateInput,
+  CocktailUpdateInput,
+} from "../validators/cocktail";
+import { Prisma } from "@prisma/client";
 
 export const cocktailsRouter = express.Router();
 
@@ -14,21 +22,42 @@ export const cocktailsRouter = express.Router();
  *       200:
  *         description: List of cocktails
  */
-cocktailsRouter.get('/', async (req, res) => {
+// GET /api/cocktails?skip=0&take=20&with=basic|full
+cocktailsRouter.get("/", async (req, res) => {
   try {
-    const cocktails = await prisma.cocktails.findMany({
-      include: {
-        ingredients: true,
-        instructions: true,
-        glass_types:true,
-      },
-    });
-    res.json(cocktails);
+    const skip = Number(req.query.skip ?? 0);
+    const take = Math.min(Number(req.query.take ?? 20), 100);
+    const withMode = (req.query.with as string) ?? "basic";
+
+    const include =
+      withMode === "full"
+        ? {
+            ingredients: true,
+            instructions: true,
+            glass_types: true,
+            cocktail_allergens: { include: { allergens: true } },
+            cocktail_categories: { include: { categories: true } },
+            cocktail_tags: { include: { tags: true } },
+          }
+        : { glass_types: true };
+
+    const [items, total] = await Promise.all([
+      prisma.cocktails.findMany({
+        skip,
+        take,
+        include,
+        orderBy: { id: "desc" },
+      }),
+      prisma.cocktails.count(),
+    ]);
+
+    res.json({ items, total, skip, take });
   } catch (err) {
-    res.status(500).json({ error: 'There was an error while fetching cocktails' });
+    res
+      .status(500)
+      .json({ error: "There was an error while fetching cocktails" });
   }
 });
-
 
 //GET a specific cocktail /api/cocktails/:id
 /**
@@ -49,27 +78,32 @@ cocktailsRouter.get('/', async (req, res) => {
  *       404:
  *         description: Cocktail not found
  */
-cocktailsRouter.get('/:id', async (req, res) => {
+cocktailsRouter.get("/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
   try {
-    const {id} = req.params;
     const cocktail = await prisma.cocktails.findUnique({
-      where : {id: Number(id)},
-      include:{
+      where: { id },
+      include: {
         ingredients: true,
         instructions: true,
         glass_types: true,
-      }
-    })
-    if (!cocktail) {
-      return res.status(404).json({ error: 'Cocktail not found' });
-    }
-    res.json(cocktail)
-  }catch (err) {
-    res.status(500).json({ err: 'There was an error while fetching cocktail' });
+        cocktail_allergens: { include: { allergens: true } },
+        cocktail_categories: { include: { categories: true } },
+        cocktail_tags: { include: { tags: true } },
+      },
+    });
+    if (!cocktail) return res.status(404).json({ error: "Cocktail not found" });
+    res.json(cocktail);
+  } catch {
+    res
+      .status(500)
+      .json({ error: "There was an error while fetching cocktail" });
   }
-})
+});
 
-//POST /api/cocktails/add-coctail
+//POST /api/cocktails/add-cocktail
 /**
  * @swagger
  * /api/cocktails:
@@ -86,119 +120,68 @@ cocktailsRouter.get('/:id', async (req, res) => {
  *       201:
  *         description: Cocktail created
  */
-cocktailsRouter.post('/add-coctail', async (req, res) => {
+cocktailsRouter.post("/add-cocktail", async (req: Request, res: Response) => {
   try {
-    const {
-      name,
-      image_url,
-      video_url,
-      description,
-      glass_type_id,
-      method,
-      garnish,
-      difficulty,
-      prep_time,
-      nutrition_info,
-      is_alcoholic,
-      servings,
-      alcohol_percentage,
-      calories_per_serving,
-      ingredients = [],
-      instructions = [],
-      allergen_ids = [],
-      category_ids = [],
-      tag_ids = []
-    } = req.body;
+    const parsed: CocktailCreateInput = cocktailCreateSchema.parse(req.body);
 
     const newCocktail = await prisma.cocktails.create({
       data: {
-        name,
-        image_url,
-        video_url,
-        description,
-        glass_type_id,
-        method,
-        garnish,
-        difficulty,
-        prep_time,
-        nutrition_info,
-        is_alcoholic,
-        servings,
-        alcohol_percentage,
-        calories_per_serving,
-        // Nested creates:
-        ingredients: { create: ingredients },
-        instructions: { create: instructions },
-        // Many-to-many connects (must be existing IDs):
+        // scalars
+        name: parsed.name,
+        image_url: parsed.image_url ?? null,
+        video_url: parsed.video_url ?? null,
+        description: parsed.description ?? null,
+        glass_type_id: parsed.glass_type_id,
+        method: parsed.method ?? null,
+        garnish: parsed.garnish ?? null,
+        difficulty: parsed.difficulty ?? null,
+        prep_time: parsed.prep_time,
+        nutrition_info: parsed.nutrition_info ?? null,
+        is_alcoholic: parsed.is_alcoholic,
+        servings: parsed.servings,
+        alcohol_percentage: parsed.alcohol_percentage,
+        calories_per_serving: parsed.calories_per_serving,
+
+        // 1:N
+        ingredients: { create: parsed.ingredients ?? [] },
+        instructions: { create: parsed.instructions ?? [] },
+
+        // M:N — use PLURAL relation names from your schema
         cocktail_allergens: {
-          create: allergen_ids.map((allergen_id: number) => ({
-            allergen: { connect: { id: allergen_id } }
-          }))
+          create: (parsed.allergen_ids ?? []).map((allergenId: number) => ({
+            allergens: { connect: { id: allergenId } },
+          })),
         },
         cocktail_categories: {
-          create: category_ids.map((category_id: number) => ({
-            category: { connect: { id: category_id } }
-          }))
+          create: (parsed.category_ids ?? []).map((categoryId: number) => ({
+            categories: { connect: { id: categoryId } },
+          })),
         },
         cocktail_tags: {
-          create: tag_ids.map((tag_id: number) => ({
-            tag: { connect: { id: tag_id } }
-          }))
-        }
+          create: (parsed.tag_ids ?? []).map((tagId: number) => ({
+            tags: { connect: { id: tagId } },
+          })),
+        },
       },
       include: {
         ingredients: true,
         instructions: true,
+        glass_types: true,
         cocktail_allergens: { include: { allergens: true } },
         cocktail_categories: { include: { categories: true } },
-        cocktail_tags: { include: { tags: true } }
-      }
+        cocktail_tags: { include: { tags: true } },
+      },
     });
 
     res.status(201).json(newCocktail);
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ errors: err });
+    }
     console.error(err);
-    res.status(500).json({ error: 'There was an error while creating the cocktail' });
-  }
-});
-
-
-//UPDATE a cocktail /api/cocktails/:id
-/**
- * @swagger
- * /api/cocktails/{id}:
- *   put:
- *     summary: Update a cocktail
- *     tags: [Cocktails]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/CocktailInput'
- *     responses:
- *       200:
- *         description: Cocktail updated
- */
-cocktailsRouter.put('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const data = req.body;
-
-    const updatedCocktail = await prisma.cocktails.update({
-      where: { id: Number(id) },
-      data,
-    });
-
-    res.json(updatedCocktail);
-  } catch (err) {
-    res.status(500).json({ error: 'There was an error while updating cocktail' });
+    res
+      .status(500)
+      .json({ error: "There was an error while creating the cocktail" });
   }
 });
 
@@ -220,16 +203,25 @@ cocktailsRouter.put('/:id', async (req, res) => {
  *       204:
  *         description: Cocktail deleted
  */
-cocktailsRouter.delete('/:id', async (req, res) => {
+cocktailsRouter.delete("/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
   try {
-    const { id } = req.params;
-
-    await prisma.cocktails.delete({
-      where: { id: Number(id) },
-    });
-
+    await prisma.$transaction([
+      prisma.ingredients.deleteMany({ where: { cocktail_id: id } }),
+      prisma.instructions.deleteMany({ where: { cocktail_id: id } }),
+      prisma.cocktail_allergens.deleteMany({ where: { cocktail_id: id } }),
+      prisma.cocktail_categories.deleteMany({ where: { cocktail_id: id } }),
+      prisma.cocktail_tags.deleteMany({ where: { cocktail_id: id } }),
+      prisma.comments.deleteMany({ where: { cocktail_id: id } }),
+      prisma.favorites.deleteMany({ where: { cocktail_id: id } }),
+      prisma.cocktails.delete({ where: { id } }),
+    ]);
     res.status(204).send();
-  } catch (err) {
-    res.status(500).json({ error: 'There was an error while deleting cocktail' });
+  } catch {
+    res
+      .status(500)
+      .json({ error: "There was an error while deleting cocktail" });
   }
 });
