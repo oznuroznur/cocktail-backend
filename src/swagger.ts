@@ -1,5 +1,11 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const HOST = process.env.HOST || 'localhost';
+const PORT = process.env.PORT || '8001';
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -7,15 +13,15 @@ const options: swaggerJsdoc.Options = {
     info: {
       title: 'Cocktail API',
       version: '1.0.0',
-      description: 'Your API documentation',
+      description: 'Cocktail backend Swagger docs',
     },
     servers: [
       {
-        url: 'http://localhost:8000',
+        url: `http://${HOST}:${PORT}`,
       },
     ],
   },
-  apis: ['./src/routes/*.ts'], 
+  apis: ['./src/routes/*.ts'],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);
