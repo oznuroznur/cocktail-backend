@@ -4,8 +4,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const HOST = process.env.HOST || 'localhost';
-const PORT = process.env.PORT || '8001';
+const swaggerHost = process.env.SWAGGER_HOST || 'http://localhost:8001';
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -17,7 +16,7 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: `http://${HOST}:${PORT}`,
+        url: swaggerHost,
       },
     ],
   },
