@@ -6,7 +6,6 @@ import {
   CocktailCreateInput,
   searchCocktailsQuery,
 } from "../validators/cocktail";
-import { Prisma } from "@prisma/client";
 
 
 export const cocktailsRouter = express.Router();
