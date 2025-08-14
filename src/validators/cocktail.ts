@@ -59,6 +59,21 @@ export const cocktailUpdateSchema = cocktailBase.extend({
   name: z.string().min(1).optional(),
 });
 
+
+export const searchCocktailsQuery = z.object({
+  q: z.string().min(1, 'q is required'),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+
+  // optional filters (use if you want)
+  isAlcoholic: z.enum(['true','false']).optional(), // maps to boolean
+  categoryId: z.coerce.number().int().optional(),
+  tagId: z.coerce.number().int().optional(),
+  glassTypeId: z.coerce.number().int().optional(),
+});
+
 // exported types
 export type CocktailCreateInput = z.infer<typeof cocktailCreateSchema>;
 export type CocktailUpdateInput = z.infer<typeof cocktailUpdateSchema>;
+
+

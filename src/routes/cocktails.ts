@@ -3,11 +3,11 @@ import express, { Request, Response } from "express";
 import { z } from "zod";
 import {
   cocktailCreateSchema,
-  cocktailUpdateSchema,
   CocktailCreateInput,
-  CocktailUpdateInput,
+  searchCocktailsQuery,
 } from "../validators/cocktail";
 import { Prisma } from "@prisma/client";
+
 
 export const cocktailsRouter = express.Router();
 
@@ -58,6 +58,106 @@ cocktailsRouter.get("/", async (req, res) => {
       .json({ error: "There was an error while fetching cocktails" });
   }
 });
+
+
+cocktailsRouter.get("/search", async (req, res) => {
+  const parsed = searchCocktailsQuery.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+
+  const { q, limit, offset, isAlcoholic, categoryId, tagId, glassTypeId } =
+    parsed.data;
+
+  const where: any = {
+    AND: [
+      {
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { description: { contains: q, mode: "insensitive" } },
+          {
+            ingredients: {
+              some: { name: { contains: q, mode: "insensitive" } },
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  if (typeof isAlcoholic !== "undefined") {
+    where.AND.push({ is_alcoholic: isAlcoholic === "true" });
+  }
+  if (categoryId) {
+    where.AND.push({
+      cocktail_categories: { some: { category_id: categoryId } },
+    });
+  }
+  if (tagId) {
+    where.AND.push({ cocktail_tags: { some: { tag_id: tagId } } });
+  }
+  if (glassTypeId) {
+    where.AND.push({ glass_type_id: glassTypeId });
+  }
+
+  // 3) execute query
+  try {
+    const [items, total] = await Promise.all([
+      prisma.cocktails.findMany({
+        where,
+        orderBy: { name: "asc" },
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          name: true,
+          image_url: true,
+          description: true,
+          is_alcoholic: true,
+          glass_types: { select: { id: true, name: true, image_url: true } },
+          ingredients: {
+            take: 6,
+            select: {
+              id: true,
+              name: true,
+              amount: true,
+              units: { select: { id: true, name: true } },
+            },
+          },
+        },
+      }),
+      prisma.cocktails.count({ where }),
+    ]);
+
+    // 4) format and return
+    res.json({
+      q,
+      total,
+      limit,
+      offset,
+      items: items.map((c) => ({
+        id: c.id,
+        name: c.name,
+        imageUrl: c.image_url,
+        description: c.description,
+        isAlcoholic: c.is_alcoholic,
+        glass: c.glass_types,
+        ingredientsPreview: c.ingredients.map((i) => ({
+          id: i.id,
+          name: i.name,
+          amount: i.amount?.toString() ?? null,
+          unit: i.units?.name ?? null,
+        })),
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ error: "There was an error while searching for cocktails" });
+  }
+});
+
 
 //GET a specific cocktail /api/cocktails/:id
 /**
@@ -225,3 +325,10 @@ cocktailsRouter.delete("/:id", async (req, res) => {
       .json({ error: "There was an error while deleting cocktail" });
   }
 });
+
+
+/**
+ * GET /api/cocktails/search?q=...&limit=20&offset=0[&isAlcoholic=true|false&categoryId=&tagId=&glassTypeId=]
+ */
+
+
