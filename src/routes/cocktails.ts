@@ -59,6 +59,119 @@ cocktailsRouter.get("/", async (req, res) => {
 });
 
 
+
+// GET /api/cocktails/search
+/**
+ * @swagger
+ * /api/cocktails/search:
+ *   get:
+ *     summary: Search cocktails by name, description, ingredients, and filters
+ *     tags: [Cocktails]
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Search keyword (used in name, description, ingredients)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         required: false
+ *         description: Max number of results to return
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         required: false
+ *         description: Number of items to skip
+ *       - in: query
+ *         name: isAlcoholic
+ *         schema:
+ *           type: boolean
+ *         required: false
+ *         description: Filter by alcoholic content (true or false)
+ *       - in: query
+ *         name: categoryId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Filter by cocktail category ID
+ *       - in: query
+ *         name: tagId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Filter by tag ID
+ *       - in: query
+ *         name: glassTypeId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Filter by glass type ID
+ *     responses:
+ *       200:
+ *         description: Filtered list of cocktails
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 q:
+ *                   type: string
+ *                 total:
+ *                   type: integer
+ *                 limit:
+ *                   type: integer
+ *                 offset:
+ *                   type: integer
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: string
+ *                       imageUrl:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       isAlcoholic:
+ *                         type: boolean
+ *                       glass:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           name:
+ *                             type: string
+ *                           image_url:
+ *                             type: string
+ *                       ingredientsPreview:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: integer
+ *                             name:
+ *                               type: string
+ *                             amount:
+ *                               type: string
+ *                             unit:
+ *                               type: string
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Internal server error
+ */
+
+
 cocktailsRouter.get("/search", async (req, res) => {
   const parsed = searchCocktailsQuery.safeParse(req.query);
   if (!parsed.success) {
@@ -99,7 +212,6 @@ cocktailsRouter.get("/search", async (req, res) => {
     where.AND.push({ glass_type_id: glassTypeId });
   }
 
-  // 3) execute query
   try {
     const [items, total] = await Promise.all([
       prisma.cocktails.findMany({
@@ -128,7 +240,6 @@ cocktailsRouter.get("/search", async (req, res) => {
       prisma.cocktails.count({ where }),
     ]);
 
-    // 4) format and return
     res.json({
       q,
       total,
