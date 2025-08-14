@@ -3,12 +3,15 @@ import cors from 'cors';
 import { cocktailsRouter } from './routes/cocktails';
 import { swaggerUi, swaggerSpec } from './swagger';
 import dotenv from 'dotenv';
+import { pantryRouter } from './routes/pantry';
 
 
 dotenv.config();
 const app = express();
-app.use(express.json());    
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8000;
+
+app.use(cors());
+app.use(express.json());
 
 app.get('/', (req, res) => {
   res.send(`
@@ -20,12 +23,12 @@ app.get('/', (req, res) => {
   `);
 });
 
-app.use(cors());
-app.use(express.json());
+//docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Public route
 app.use('/api/cocktails', cocktailsRouter);
+app.use('/api/pantry', pantryRouter);      
 
 
 app.listen(PORT, '0.0.0.0', () => {
